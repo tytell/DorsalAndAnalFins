@@ -22,11 +22,15 @@ Imports:
     config,
     devtools,
     fishmechr (>= 1.0.3),
+    gsignal,
+    hdf5r,
     here,
     knitr,
     nanoparquet,
+    patchwork,
     rlang,
     rmarkdown,
-    testthat
-Remotes:  
+    testthat,
+    withr
+Remotes: 
     tytell/fishmechr

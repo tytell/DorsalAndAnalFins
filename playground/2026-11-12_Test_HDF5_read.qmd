@@ -1,0 +1,47 @@
+---
+title: "2026-11-12 Test HDF5 read"
+format: html
+---
+
+```{r setup}
+#| message: false
+library(dplyr)
+library(tidyr)
+library(purrr)
+library(readr)
+library(patchwork)
+library(gsignal)
+library(cli)
+devtools::load_all(quiet = TRUE)
+```
+
+
+```{r}
+data1 <- read_flapper_data(proj_path("data_dir", "RawData/ForceData/2026-11-03/FlexFin/test003.h5"))
+```
+
+```{r}
+data1 <-
+  data1 |> 
+  mutate(fy_s.N = smooth(fy.N, t = t.s, cutoff = 5),
+         fx_s.N = smooth(fx.N, t = t.s, cutoff = 5))
+```
+
+```{r}
+wrap_plots(
+  data1 |> 
+    ggplot(aes(x = t.s, y = fy.N)) +
+    geom_line() +
+    geom_line(aes(y = bias_fy.N, color = 'bias')) +
+    geom_line(aes(y = fy_s.N, color = 'smooth')),
+  
+  data1 |> 
+    ggplot(aes(x = t.s)) +
+    geom_line(aes(y = fx.N)) +
+    geom_line(aes(y = bias_fx.N, color = 'bias')) +
+    geom_line(aes(y = fx_s.N, color = 'smooth')),
+  
+  ncol = 1
+)
+```
+
