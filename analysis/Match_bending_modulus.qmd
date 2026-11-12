@@ -1,0 +1,191 @@
+---
+title: "Match bending modulus"
+format: html
+---
+
+We want to make a model of a fish with an oval cross section that matches the bending modulus of the thin plastic panels that Alyx Khuat-Sherwood used when she was testing the effect of tail shape.
+
+# Alyx's foils
+
+Bending modulus is $EI$ where $E$ is the Young's modulus of the material and $I$ is the second moment of area of the cross-section of the material.
+
+![Experimental set up. A) Foil held in place by a coupler inserted with a rod. B) Force transducer connected to the foil by a metal rod. C) Motor connected to the force transducer with a rod and mounted to 80-20 scaffolding. D) Foil silhouettes.](AlyxFoils.png)
+
+## Young's modulus
+
+The foils are made of PETG plastic. According to [McMaster](https://www.mcmaster.com/products/plastic?s=petg%20plastic), it has a tensile stiffness of 7100 psi.
+
+```{r}
+E_PETG.psi <- 7100
+psi2Pa <- 6895        # N/m^2 per psi
+E_PETG.Pa <- E_PETG.psi * psi2Pa
+
+E_PETG.Pa / 1e6
+```
+
+## Second moment of area
+
+Alyx's foils were 0.4mm thick. The rectangular foil had a length of 19cm and an area of 36.61cm\^2, so its height is 1.93cm.
+
+Second moment of area for a [rectangular cross section](https://en.wikipedia.org/wiki/List_of_second_moments_of_area) is
+
+$$\frac{w^3 h}{12}$$
+
+```{r}
+L.mm <- 190
+w.mm <- 0.4
+h.mm <- 19.3
+I.mm4 <- w.mm^3 * h.mm / 12
+
+I.mm4
+```
+
+## Bending modulus
+
+Convert the units and multiply things out
+
+```{r}
+mm2m <- (1 / 1000)   # m per mm
+EI_Alyx <- E_PETG.Pa * (I.mm4 * mm2m^4)
+
+EI_Alyx
+```
+
+# Match with an oval cross section
+
+The softest material we can print has a Young's modulus of 0.278MPa. If we want an oval cross section, with height the same as Alyx's foils, then how wide can they be to match her bending modulus?
+
+```{r}
+E_print.Pa <- 0.278e6
+```
+
+Second moment of area for an oval is $$ \frac{\pi}{4} w^3 h $$
+
+So if we have $$ EI_{oval} = EI_{Alyx} $$
+
+$$ \tfrac{\pi}{4} E_{print} w_{oval}^3 h = EI_{Alyx} $$
+
+$$ w_{oval} = \left( \frac{4 EI_{Alyx}}{\pi E_{print} h} \right)^{1/3} $$
+
+```{r}
+w_oval.m <- ((4 * EI_Alyx) / (pi * E_print.Pa * (h.mm/1000)))^(1/3)
+
+w_oval.mm <- w_oval.m * 1000
+w_oval.mm
+```
+
+What if we reduce the height?
+
+```{r}
+w_ovalh2.m <- ((4 * EI_Alyx) / (pi * E_print.Pa * (h.mm/1000/2)))^(1/3)
+
+w_ovalh2.mm <- w_ovalh2.m * 1000
+w_ovalh2.mm
+```
+
+Doesn't change things much.
+
+What material would we need to have a 10mm thick oval? $$ E = EI_{Alyx} / I_{10} $$
+
+```{r}
+I_10.mm4 <- pi/4 * (10^3) * (h.mm)
+I_10.m4 <- I_10.mm4 * (mm2m^4)
+
+E_new.Pa <- EI_Alyx / I_10.m4
+
+E_new.Pa
+```
+
+```{r}
+I_5.mm4 <- pi/4 * (5^3) * (h.mm)
+I_5.m4 <- I_5.mm4 * (mm2m^4)
+
+E_new.Pa <- EI_Alyx / I_5.m4
+
+E_new.Pa
+```
+
+# Match effective flexibility
+
+Effective flexibility is a measure from beam bending. Maybe we try to match that, instead of the exact bending modulus.
+
+$$ \Pi = \left( \frac{\rho h L^5 \phi^2}{EI} \right)^{1/2} $$
+
+where $h$ is height, $L$ is length, and $\phi$ is the bending frequency.
+
+## Alyx's effective flexibility
+
+Alyx tested her foils at 2Hz.
+
+```{r}
+rho.kgpm3 <- 1000    # kg per m^3
+freq.Hz <- 2
+Pi_Alyx <- sqrt(rho.kgpm3 * (h.mm / 1000) * (L.mm / 1000)^5 * freq.Hz^2 / EI_Alyx)
+
+Pi_Alyx
+```
+
+Suppose we make a fish model with a thickness of 10mm.
+
+```{r}
+w_oval.mm <- 10
+I_oval.mm4 <- pi/4 * w_oval.mm^3 * h.mm
+
+I_oval.mm4
+```
+
+```{r}
+EI_oval.Nm2 <- E_print.Pa * (I_oval.mm4 * mm2m^4)
+
+EI_oval.Nm2
+```
+
+To match $Pi$ by varying $L$ we have
+
+$$ \Pi_{oval} = \Pi_{Alyx} $$
+
+$$ \frac{\rho h L_{oval}^5 \phi^2}{EI_{oval}} = \Pi_{Alyx}^2 $$
+
+$$ L_{oval} = \left( \frac{ \Pi_{Alyx}^2 EI_{oval}} {\rho h \phi^2} \right)^{1/5} $$
+
+Check units: $$ [m] = \left( \frac{[]^2 [N m^2]}{[kg / m^3] [m] [1/s]^2} \right)^{1/5} $$
+
+$$ [m] = \left( \frac{[]^2 [kg m^3/s^2 ]}{[kg / m^2 / s^2] } \right)^{1/5} $$ $$ [m] = \left( m^5 \right) ^ {1/5} $$
+
+```{r}
+L_oval.m <- ((Pi_Alyx^2 * EI_oval.Nm2) / (rho.kgpm3 * (h.mm / 1000) * freq.Hz^2)) ^ (1/5)
+
+L_oval.mm <- L_oval.m * 1000
+L_oval.mm
+```
+
+What if we also increase frequency?
+
+```{r}
+freq_oval.Hz <- 4
+
+L_oval.m <- ((Pi_Alyx^2 * EI_oval.Nm2) / (rho.kgpm3 * (h.mm / 1000) * freq_oval.Hz^2)) ^ (1/5)
+
+L_oval.mm <- L_oval.m * 1000
+L_oval.mm
+```
+
+Suppose we want a length of 20cm. What would the thickness be?
+
+Then we have
+
+$$ EI_{oval} = \frac{\rho h L_{oval}^5 \phi^2}{\Pi_{Alyx}^2} $$
+
+$$ \tfrac{\pi}{4} E_{oval} w_{oval}^3 h = \frac{\rho h L_{oval}^5 \phi^2}{\Pi_{Alyx}^2} $$
+
+$$ w_{oval} = \left( \frac{4 \rho L_{oval}^5 \phi^2}
+{\pi \Pi_{Alyx}^2 E_{print}} \right)^{1/3} $$
+
+```{r}
+L_oval.m <- 0.20
+
+w_oval.m <- ((4 * rho.kgpm3 * L_oval.m^5 * freq_oval.Hz^2) / (pi * Pi_Alyx^2 * (E_print.Pa))) ^ (1/3)
+
+w_oval.mm <- w_oval.m * 1000
+w_oval.mm
+```

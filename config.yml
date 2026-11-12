@@ -1,0 +1,12 @@
+# Data locations. Relative paths are resolved from the project root
+# (see R/paths.R). Add a named profile below and set R_CONFIG_ACTIVE to
+# override paths on another machine.
+default:
+  # Source data:
+  data_dir: "/Volumes/TytellLab$/NewData/ElongateFoils/ElongateFoil_DorsalandAnalFins"
+  raw_dir: "data/raw"
+  metadata_dir: "data/metadata"
+  processed_dir: "data/processed"
+  notes_dir: "data/notes"
+  figures_dir: "output/figures"
+  reference_dir: "reference_code"

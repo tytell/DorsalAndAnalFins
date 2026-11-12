@@ -1,0 +1,32 @@
+Package: finmodels
+Title: Dorsal and anal fin models
+Version: 0.0.0.9000
+Authors@R: 
+    person("Olivia", "Hawkins", role = c("aut", "cre"))
+    person("Eleanor", "Whitehouse", role = c("aut", "cre"))
+    person("Eric", "Tytell", role = c("aut", "cre"))
+Description: Physical models examining the function of dorsal and anal
+    fins in elongate fishes
+License: `use_mit_license()`, `use_gpl3_license()` or friends to pick a
+    license
+Depends: 
+    R (>= 4.3),
+    tidyverse
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 8.1.0
+Config/testthat/edition: 3
+Imports: 
+    assertthat,
+    cli,
+    config,
+    devtools,
+    fishmechr (>= 1.0.3),
+    here,
+    knitr,
+    nanoparquet,
+    rlang,
+    rmarkdown,
+    testthat
+Remotes:  
+    tytell/fishmechr

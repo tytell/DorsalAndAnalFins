@@ -1,0 +1,16 @@
+project:
+  type: default
+  execute-dir: project
+  output-dir: output/notebooks
+  render:
+    - analysis/*.qmd
+
+execute:
+  freeze: auto
+  warning: false
+
+format:
+  html:
+    toc: true
+    code-fold: true
+    embed-resources: true

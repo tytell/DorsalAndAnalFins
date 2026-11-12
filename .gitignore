@@ -1,0 +1,39 @@
+# R / RStudio
+.Rproj.user/
+.Rhistory
+.RData
+.Ruserdata
+.Renviron
+
+# OS
+.DS_Store
+
+# Posit Assistant state
+.posit/
+
+# Quarto
+/.quarto/
+/_freeze/
+
+# Data and outputs: raw data are copied from the archive, the rest is regenerable
+data/raw/
+data/processed/
+output/
+
+# Read-only reference material (reference_code/fishmechr is its own git repo)
+reference_code/
+references/
+
+# Do not commit video files
+*.cine
+*.avi
+*.mp4
+*.tif
+*.tiff
+
+# Do not commit Matlab data files (.mat) files
+*.mat
+
+**/*.quarto_ipynb
+*.Rproj
+setup_project.R
