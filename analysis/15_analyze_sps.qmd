@@ -1,0 +1,163 @@
+---
+title: "Process no-flow data"
+---
+
+
+```{r setup}
+#| message: false
+library(tidyverse)
+library(cli)
+devtools::load_all(quiet = TRUE)
+```
+
+```{r}
+data <- bind_rows(
+  nanoparquet::read_parquet(proj_path("processed_dir", 'stiff_fin_sps_data.parquet')),
+  nanoparquet::read_parquet(proj_path("processed_dir", 'flex_fin_sps_data.parquet'))
+)
+```
+
+```{r}
+data <-
+  data |> 
+  rename(flowspeed.mmps = flowspeed.mm) |> 
+  mutate(flowspeed.Lps = flowspeed.mmps/foillen.mm)
+```
+
+```{r}
+data |> 
+  group_by(fin, Amplitude, Frequency) |> 
+  summarize(cycle_range = max(t.norm))
+```
+
+```{r}
+data |> 
+  mutate(fy_s.N = fy_s.N - fy.N_init) |> 
+  ggplot(aes(x = t.norm, y = fy_s.N, color = fin)) +
+  geom_path(aes(group = trial)) +
+  facet_wrap(~ flowspeed.Lps)
+```
+
+```{r}
+forcedata <-
+  data |> 
+  mutate(fy.N_init = fy.N_init - bias_fy.N,
+         fx.N_init = fx.N_init - bias_fx.N,
+         tz.Nm_init = tz.Nm_init - bias_tz.Nm,
+         fy_s.N = fy_s.N - bias_fy.N,
+         fx_s.N = fx_s.N - bias_fx.N,
+         tz_s.Nm = tz_s.Nm - bias_tz.Nm,
+         angvel.degps = (lead(angle_cmd.deg) - lag(angle_cmd.deg)) / 
+           (lead(t.s) - lag(t.s)))
+```
+
+
+```{r}
+bias_offset_flex <-
+  forcedata |> 
+  filter(fin == 'flexible', flowspeed.mmps < 90) |> 
+  group_by(trial) |> 
+  summarize(across(ends_with("_init"), mean),
+            .groups = 'drop') |> 
+  summarize(across(ends_with("_init"),
+                   \(x) x[trial == 2] - x[trial == 1]))
+
+# this just duplicates the columns and appends the _s for the smoothed data
+# since the bias offset is the same for smoothed and unsmoothed
+bias_offset_flex <-
+  bind_cols(
+    bias_offset_flex,
+    
+    bias_offset_flex |> 
+      rename_with(\(n) str_remove(n, '_init')),
+
+    bias_offset_flex |> 
+      rename_with(\(n) str_replace(n, '([ft][xyz])(\\.Nm?)_init', '\\1_s\\2'))
+  )
+```
+
+```{r}
+forcedatacorr <-
+  forcedata |> 
+  ungroup() |> 
+  mutate(
+    across(c(fy.N, fy_s.N, fy.N_init, fx.N_init),
+                \(x) if_else(
+                  (fin == 'flexible') & (trial >= 2),
+                  x - bias_offset_flex[[cur_column()]],
+                  x
+                )
+  )) |> 
+  mutate(thrust_lateral(angle_cmd.deg, fx_s.N, fy_s.N),
+         power.W = -tz_s.Nm * (angvel.degps * pi/180))
+```
+
+```{r}
+forcedatacorr |> 
+  ggplot(aes(x = t.norm, y = thrust.N)) +
+  geom_line(aes(group = trial, color = fin)) +
+  facet_wrap(~flowspeed.Lps)
+```
+
+
+Drag force is positive $f_y$, but we want to show it as negative.
+```{r}
+forcedatacorr |> 
+  ggplot(aes(x = flowspeed.mmps, y = -fy.N_init, color = fin)) +
+  geom_point()
+```
+
+```{r}
+forcedatacorr |> 
+  ggplot(aes(x = flowspeed.mmps, y = fx.N_init, color = fin)) +
+  geom_point()
+```
+
+```{r}
+forcemndata <-
+  forcedatacorr |> 
+  mutate(halfcycle = floor(t.norm*2)/2,
+         cycle = floor(t.norm)) |> 
+  filter(between(halfcycle, 2, 8)) |> 
+  group_by(fin, trial, flowspeed.Lps, cycle) |> 
+  summarize(fy_mn.N = mean(fy_s.N),
+            peakthrust.N = signed_max(thrust.N, pctile = 0.99),
+            meanthrust.N = mean(thrust.N),
+            peaklateral.N = signed_max(thrust.N, pctile = 0.99),
+            meanabslateral.N = mean(abs(lateral.N)),
+            meanpower.W = mean(power.W),
+            effect = meanthrust.N / meanpower.W,
+            .groups = 'drop')
+```
+
+```{r}
+forcemndata |> 
+  ggplot(aes(y = flowspeed.Lps, x = meanthrust.N, color = fin)) +
+  geom_point() +
+  stat_smooth(method = 'lm') +
+  geom_vline(xintercept = 0)
+```
+
+```{r}
+get_sps <- function(flowspeed.Lps, thrust.N)
+{
+  mod <- lm(flowspeed.Lps ~ thrust.N)
+  predict(mod, newdata = tibble(thrust.N = 0),
+          interval = 'confidence') |> 
+    as_tibble()
+}
+```
+
+
+```{r}
+forcemndata |> 
+  group_by(fin) |> 
+  summarize(get_sps(flowspeed.Lps, meanthrust.N))  
+```
+
+
+```{r}
+forcemndata |> 
+  ggplot(aes(x = flowspeed.Lps, y = meanabslateral.N, color = fin)) +
+  geom_point()
+```

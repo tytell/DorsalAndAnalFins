@@ -29,6 +29,7 @@ read_flapper_data <- function(filename) {
   data <- tibble::tibble(
     t.s = read_ds("NominalStimulus/t"),
     t.norm = read_ds("NominalStimulus/tnorm"),
+    angle_cmd.deg = read_ds("NominalStimulus/Position"),
     fx.N = read_ds("Calibrated/xForce"),
     fy.N = read_ds("Calibrated/yForce"),
     fz.N = read_ds("Calibrated/zForce"),
@@ -94,4 +95,81 @@ read_h5_attributes <- function(h5, skip = character()) {
       a
     }) |>
     purrr::list_flatten(name_spec = "{inner}")
+}
+
+read_flapper_dataset <- function(
+  dirname,
+  fin,
+  trialtype,
+  trials = NULL,
+  cutoff = 10
+) {
+  datadir <- proj_path("data_dir", dirname)
+
+  files <- tibble(
+    filename = fs::dir_ls(
+      path = datadir,
+      type = "file",
+      regexp = "test.*\\.h5"
+    ),
+    trial = str_extract(filename, '(?<=test)(\\d+)', group = 1) |>
+      as.numeric()
+  )
+
+  if (!is.null(trials)) {
+    files <- files |>
+      mutate(good = trial %in% trials)
+  } else {
+    files <- files |>
+      mutate(good = TRUE)
+  }
+
+  if (nrow(files) == 0) {
+    cli_alert_danger("No files found in {datadir}")
+  } else {
+    cli_alert_success(
+      "{nrow(files)} files found in {datadir}: {sum(files$good)} good"
+    )
+  }
+
+  data <-
+    with(
+      files |>
+        filter(good),
+      map2(
+        filename,
+        trial,
+        \(n, t)
+          read_flapper_data(n) |>
+            mutate(filename = n, trial = t),
+        .progress = TRUE
+      )
+    )
+
+  data <-
+    data |>
+    bind_rows() |>
+    rename(foillen.mm = Foillen_mm, flowspeed.mm = FlowSpeed_mm) |>
+    mutate(fin = fin, trial_type = trialtype)
+
+  data <-
+    data |>
+    group_by(trial) |>
+    mutate(
+      across(
+        c(
+          matches('^[tf][xyz].Nm?')
+        ),
+        \(x) smooth(x, t = t.s, cutoff = cutoff),
+        .names = '{.col}_s'
+      )
+    ) |>
+    rename_with(\(n) str_replace(n, '\\.N(m?)_s$', '_s.N\\1')) |>
+    mutate(across(
+      c(matches('^[tf][xyz].Nm?')),
+      \(x) mean(x[between(t.s, -0.8, -0.2)]),
+      .names = '{.col}_init'
+    ))
+
+  return(data)
 }

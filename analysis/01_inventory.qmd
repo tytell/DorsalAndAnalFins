@@ -4,10 +4,48 @@ title: "01 Inventory"
 
 ```{r setup}
 #| message: false
-library(dplyr)
-library(tidyr)
-library(purrr)
-library(readr)
+library(tidyverse)
 library(cli)
 devtools::load_all(quiet = TRUE)
+```
+
+# Check data
+
+## Stiff fin no flow case
+
+```{r siff fin no flow}
+stiff_fin_noflow <- read_flapper_dataset('RawData/ForceData/2026-11-03/StiffFin',
+                                         fin = 'stiff', trialtype = 'noflow',
+                                         cutoff = 5,
+                                         trials = seq(2, 100))
+
+
+nanoparquet::write_parquet(stiff_fin_noflow, proj_path("processed_dir", 'stiff_fin_noflow_data.parquet'))
+```
+
+## Flexible fin no flow case
+
+```{r flex fin no flow}
+flex_fin_noflow <- read_flapper_dataset('RawData/ForceData/2026-11-03/FlexFin',
+                                         fin = 'flexible', trialtype = 'noflow',
+                                         cutoff = 5,
+                                         trials = seq(4, 34))
+
+
+nanoparquet::write_parquet(flex_fin_noflow, proj_path("processed_dir", 'flex_fin_noflow_data.parquet'))
+```
+
+## Stiff fin self-propelled speed case
+
+```{r stiff fin sps}
+stiff_fin_sps <- read_flapper_dataset('RawData/ForceData/2026-11-10/StiffFin',
+                                         fin = 'stiff', trialtype = 'sps')
+nanoparquet::write_parquet(stiff_fin_sps, proj_path("processed_dir", 'stiff_fin_sps_data.parquet'))
+```
+
+
+```{r flex fin sps}
+flex_fin_sps <- read_flapper_dataset('RawData/ForceData/2026-11-10/FlexFin',
+                                         fin = 'flexible', trialtype = 'sps')
+nanoparquet::write_parquet(flex_fin_sps, proj_path("processed_dir", 'flex_fin_sps_data.parquet'))
 ```
